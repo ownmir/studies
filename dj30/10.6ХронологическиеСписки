@@ -1,0 +1,68 @@
+    =dates=
+Выводят хронологические списки: за определенный год, месяц, неделю или дату, за текущее число
+DateMixin, BaseDateListView, ArhiveIndexView выводят хрон-е списки наиболее "свежих" записей
+DateMixin фильтрация записей по дате
+───────── 
+- date_field указывает имя поля модели типа DateField или DateTimeField (строка), по которому будет выпол-ся
+фильтрация записей см get_date_field()
+- allow_future True - включить в результирующий набор записи с будущей датой.По ум-ю False см get_allow_future
+
+
+-- get_date_field(self) В изначальной реализации возвращает значение атр-та date_field;
+-- get_allow_future(self) True or False В изначальной реализации возвращает значение allow_future
+BaseDateListView(View, MultipleObjectMixin, DateMixin) базовый класс
+──────────────── задает сортировку записей по убыванию
+- allow_empty
+- date_list_period по какой части надо урезать значения даты. По ум-ю "year". +"month","day" (число, т.е.
+дата не будет урезаться) см get_date_list_period
+
+-- get_date_list_period(self) В изначальной реализации возвращает date_list_period
+-- get_dated_items(self) возвращает кортеж из трех элем-ов:
+ • список значений дат, хранящихся в записях из полученного набора;
+ • сам набор записей
+ • словарь, элем-ты которого будут добавлены в контекст шаблона.
+ В изначальной реализации возбуждает исключение NotImplementedError. Предназначен для переопределения.
+-- get_dated_queryset(self, **lookup) возвращает набор записей, отфильтрованный согласно словаря параметра
+lookup
+-- get_date_list(self, queryset, date_type=None, ordering='ASC') возвращает список значений даты, урезанной 
+по части, что задана в параметре date_type (если он отсутствует, будет использовано значение, возвращенное
+get_date_list_period), для которых exists записи набора в параметре queryset. ordering - ASC, DESC
+Класс добавляет в контекст шаблона два доп элем-та
+• context['object_list'] результирующий набор записей
+• context['date_list'] list урезанных значений дат, хранящихся в записях из полученного набора
+
+ArhiveIndexView BaseDateListView, MultipleObjectTemplateResponseMixin
+─────────────── выводит хронологический список записей, sort по убыванию значения заданного поля.
+Для хранения результирующего набора выводимых записей в контексте шаблона создается переменная latest.
+В переменной date_list - list дат, урезанных до года. К автоматом сгенерированнуму пути к шаблону по умолчанию
+добавляется суффикс _archive
+from django.views.generic.dates import ArchiveIndexView
+from .models import Bb, Rubric
+
+class BbIndexView(ArchiveIndexView):
+    model = Bb
+    date_field = "published"
+    date_list_period = "year"
+    template_name = "bboard/index.html"
+    context_object_name = "bbs"
+    allow_empty = True
+    
+    def get_context_data(self, *args, **kwargs):
+        context = super().get_context_data(*args, **kwargs)
+        context['rubrics'] = Rubric.objects.all()
+        return context
+
+from .models import MainDuty
+
+class DutyIndexView(ArchiveIndexView):
+    model = MainDuty
+    date_field = "date_duty"
+    date_list_period = "year"
+    template_name = "main/index.html"
+    context_object_name = "latest_duty"
+    allow_empty = True
+    
+    def get_context_data(self, *args, **kwargs):
+        context = super().get_context_data(*args, **kwargs)
+        context['duties'] = MainDuty.objects.all()
+        return context

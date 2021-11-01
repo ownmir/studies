@@ -1,0 +1,91 @@
+    =edit=
+работа с формами: модельными и обычными
+
+Классы самого низкого уровня "умеют" лишь вывести форму, проверить занесенные данные на корректность и,
+в случае ошибки, вывести повторно, вместе с предупреждающими сообщениями
+
+10.5.1.1
+FormMixin    создание формы. Класс производный от ContextMixin. Создает форму, проверить занесенные в нее
+─────────    данные, выполняют перенаправление, если данные прошли проверку, или выводит форму повторно.
+ form_class,initial,success_url
+
+   - form_class ссылка на класс См get_form_class()
+   - initial Ключи этого словаря должны соответствовать полям формы. По ум-ю - {} См get_initial
+   - success_url интернет-адрес для перенаправления при valid См get_success_url()
+   - prefix строковый префикс для имени формы, который будет присутствовать в создающем форму HTML-коде.
+   Префикс стоит задавать только в том случае, если планируется поместить несколько однотипных форм в одном
+   теге <form>. По ум-ю None (отсутствие префикса) См get_prefix()
+ get_form_class(self),get_initial(self),get_success_url(self),get_prefix(self),get_form(self,form_class=None),
+ get_form_kwargs(self),get_context_data(self, **kwargs),form_valid(self, form),form_invalid(self, form)
+  -- get_form_class(self) must return ссылку на класс используемой формы. По ум-ю возвращает form_class value
+  -- get_initial(self)
+  -- get_success_url(self)
+  -- get_prefix(self)
+  -- get_form(self, form_class=None) создает и возвращает объект формы.
+  В изначальной реализации, если класс формы указан в параметре form_class, создает экземпляр этого класса,
+  иначе - экземпляр класса, возвращенного get_form_class(). при этом конструктору класса формы передаются
+  параметры возвращенные методом get_form_kwargs()
+  -- get_form_kwargs(self) должен создавать и возвращать словарь с параметрами, которые будут переданы
+  конструктору класса формы в методе get_form().
+  В изначальной реализации возвращает словарь с элементами:
+  • initial - словарь с изначальными данными, возвращенный методом get_initial();
+  • prefix - префикс для имени формы, возвращенный методом get_prefix();
+  Следующие два элемента создаются, если для отправки запроса применялись HTTP-методы POST и PUT (т.е. при
+  проверке введенных в форму данных):
+  • data - словарь с данными, занесенными в форму посетителем;
+  • files - словарь с файлами, отправленными посетителем из формы;
+  -- get_context_data(self, **kwargs) - переопределенный метод, создающий и возвращающий контекст шаблона.
+  В изначальной реализации добавляет в контекст шаблона переменную form, хранящую созданную форму;                                                               ────
+  -- form_valid(self, form) должен выполнять обработку данных, введенных в переданную через параметр form 
+  форму, в том случае, если они прошли валидацию.
+  В изначальной реализации просто выполняет перенаправление по адресу, возвращенному методом 
+  get_success_url();
+  -- form_invalid(self, form) должен выполнять обработку ситуации, когда данные, введенные в переданную 
+  через параметр form форму, не проходят валидацию. В изначальной реализации повторно выводит страницу с 
+  формой на экран.
+
+10.5.1.2 Контроллер
+ProcessFormView    вывод и обработка формы. Класс производный от View, выводит на экран страницу с формой,
+───────────────    принимает введенные данные и проводит их валидацию.
+
+Он переопределяет три метода, унаследованные от базового класса:
+• get(self, request, *args , **kwargs) - выводит страницу с формой на экран;
+• post(self, request, *args , **kwargs) - получает введенные в форму данные
+и выполняет их валидацию. Если валидация прошла успешно, вызывает метод
+form_valid(), в противном случае - метод form_invalid() (см. разд. 10. 5.1.1);
+• put(self, request, *args, **kwargs) - тo жe, чтo и post().
+
+10.5.1.3 Контроллер
+FormView    создание, вывод и обработка формы. Класс, производный от FormMixin, ProcessFormView и 
+────────    TemplateResponseMixin
+            template_name,content_type,template_engine                                      
+            get_template_names(self),render_to_response(self, context, **response_kwargs)
+Программа использования класса FormView:
+ from django.views.generic.edit import FormView
+ from django.urls import reverse
+ from .models import Bb, Rubric
+ 
+ class BbAddView(FormView):
+    template_name = 'bboard/create.html'
+    form_class = BbForm
+    initial = {'price': 0.0}
+    
+    def get_context_data(self, *args, **kwargs):
+        context = super().get_context_data(*args, **kwargs)
+        context['rubrics'] = Rubric.objects.all()
+        return context
+    
+    def form_valid(self, form):
+        form.save()
+        return super().form_valid(form)
+    
+    def get_form(self, form_class=None):
+        """Следовало назвать create_and_return_form"""
+        # self.object используется в get_success_url
+        self.object = super().get_form(form_class)
+        return self.object
+    
+    def get_success_url(self):
+        # rubric_id получаем из self.object
+        return reverse('bboard:by_rubric', kwargs={'ruЬric_id': self.object.cleaned_data('rubric'].pk)) 
+ 

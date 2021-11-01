@@ -1,0 +1,113 @@
+    =edit=
+работа с формами: модельными и обычными
+
+ContextMixin
+ -
+  
+ -- 
+  
+||
+\/
+FormMixin                        SingleObjectMixin
+ 
+ -form_class,initial,success_url -model,queryset,pk_url_kwarg,slug_field,slug_url_kwarg,query_pk_and_slug,
+                                  context_object_name
+ 
+ --get_form_class(self),get_initial(self),get_success_url(self),get_prefix(self),get_form(self,form_class=None),
+ get_form_kwargs(self),get_context_data(self, **kwargs),form_valid(self, form),form_invalid(self, form)
+                                 --get_queryset(),get_slug_field(),get_context_object_name(self, obj),
+                                 get_object(self, queryset=None),get_context_data(self, kwargs)
+  
+||
+\/
+ModelFormMixin
+──────────────
+- model ссылка на класс модели
+- fields последовательность имен полей модели, на основе которой будет создана форма
+Либо model & fields, либо form_class, унаследованном от FormMixin См get_form_class()
+- success_url В отличае от одноименного атрибута базового класса FormMixin, он поддерживает указание прямо
+в строке с интернет-адресом спецпоследовательностей вида {<k><имя поля в таблице БД></k>}. Вместо нее будет
+ЗНАЧЕНИЕ с указанным ИМЕНЕМ. В такие последовательности должно подставляться имя не поля модели, таблицы БД
+(id а не pk, а для вставки внешнего ключа - поле rubric_id, not rubric)
+class BbCreateView(CreateView):
+    ...
+    success_url = '/bboard/detail/{id}' или success_url = '/bboard/{rubric_id}'
+
+см get_success_url()
+-- get_form_class(self) возвращает ссылку на класс формы. Ссылка: атрибут form_class; автоматом созданная из
+модели model или queryset. Для создания  класса формы еще используется fields
+-- get_success_url(self) возвращает значение success_url, где спецпоследовательность вида 
+{<k><имя поля в таблице БД></k>} уже заменена. Если адрес там не указан, пытается получить его вызовом
+get_success_url() модели.
+-- get_form_kwargs(self) создает и возвращает словарь с параметрами, яки будут переданы конструктору класса
+формы модели в методе get_form()
+В изначальной реализации добавляет в словарь, сформированный унаследованым методом, элемент instance, 
+хранящий обрабатываемую формой запись модели (если она существует, т е форма используется не для добавления 
+записи) Зта запись извлекается из object
+-- form_valid(self, form) переопределенный метод, должен выполнять обработку данных, введенных через параметр 
+form форму, если они прошли валидацию
+В изначальной реализации сохраняет содержимое формы в модели, вызвав у нее метод save, присваивает новую 
+запись атрибуту object, потом вызывает унаследованный метод form_valid().
+
+CreateView  ProcessFormView  ModelFormMixin  SingleObjectTemplateMixin
+──────────  выводит форму, проверяет данные и создает на их основе новую запись.
+-template_name_suffix (по ум-ю '_form'
+-object хранится созданная в модели запись или None, если она еще не была создана.
+
+UpdateView  ProcessFormView  ModelFormMixin  SingleObjectTemplateMixin
+──────────  Ищет запись по полученным из URL-параметра ключу или слагу, выводит страницу с формой для ее 
+правки, проверяет и сохраняет исправленные данные.
+- template_name_suffix строка с суффиксом, который добавляется к пути к шаблону ( по ум-ю '_form')
+- object хранится исправляемая запись
+Поскольку класс UpdateView предварительно выполняет поиск записи, в нем необходимо указать модель
+(в унаследованном ат-те model), набор записей (queryset) или переопределить метод get_queryset().
+from django.views.generic.edit import UpdateView
+from .models import Bb, Rubric
+
+class BbEditView(UpdateView):
+    model = Bb
+    form_class = BbForm
+    success_url = "/"
+    
+    def get_context_data(self, *args, **kwargs):
+        context = super().get_context_data(*args, **kwargs)
+        context['rubrics'] = Rubric.objects.all()
+        return context
+
+Шаблон bboard/bb_form.html получается из шаблона bboard/create.html (поменять <b>Добавление на <b>Исправление 
+и подпись кнопки с <b>Добавить на <b>Сохранить
+
+DeletionMixin предполагает, что запись, подлежащая удалению, уже найдена и сохранена в атрибуте object
+───────────── - success_url и -- get_success_url аналогичны присутствующим в примеси ModelFormMixin
+
+DeleteView DetailView, DeletionMixin, SingleObjectTemplateResponseMixin Удаление записи с подтверждением
+────────── Ищет запись по ключу или слагу из URL-параметра,выводит страницу подтверждения с кнопкой удаления
+и удаляет запись.
+- template_name_suffix (по ум-ю '_confirm_delete') - object
+Поскольку класс DeleteView предварительно выполняет поиск записи, в нем необходимо указать модель
+(в унаследованном ат-те model), набор записей (queryset) или переопределить метод get_queryset().
+from django.views.generic.edit import UpdateView
+from .models import Bb, Rubric
+
+class BbEditView(DeleteView):
+    model = Bb
+    success_url = "/"
+    
+    def get_context_data(self, *args, **kwargs):
+        context = super().get_context_data(*args, **kwargs)
+        context['rubrics'] = Rubric.objects.all()
+        return context
+
+{% extends "layout/basic.html" %}
+{% blосk title % ) Удаление объявления {% endЬlock %} 
+{% blосk content %}
+<h2>Удаление объявления</h2>
+<р>Рубрика: {{ bb.ruЬric.name }}</р>
+<р>Товар: {{ bb.title }}</р>
+<р> {{ bb.content }}</р>
+<р>Цена: {{ bb.price }}</р>
+< form method="post">
+{% csrf_token %}
+<input type="submit" vаluе="Удалить">
+</form>
+{% endblock %}

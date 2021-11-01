@@ -1,0 +1,65 @@
+﻿╔═════════════════════════════════════════════════════════════════════════════════════════════════════════════╗
+║                                                                                                             ║
+║   =base=                                                                                                    ║
+║   View                                                                                                      ║
+║   ────                                                                                                      ║
+║   - htttp_method_names = ['get', 'post', 'put', 'patch', 'delete', 'head', 'options', 'trace']              ║
+║   -- as_view()                                                                                              ║
+║   -- setup(self, request, *args, **kwargs), args с Dj2.0 не используется                                    ║
+║   -- <отправлять по назначению>dispatch(self, request, *args, **kwargs)                                     ║
+║      в зависимости от HTTP-метода в request вызывает соответствующий метод get(), post()...                 ║
+║      если метод отсутствует - ничего не делает, исключая то, что приотсутствии head() вызывается get()      ║
+║   -- htttp_method_not_allowed(self, request, *args, **kwargs)                                               ║
+║      вызывается, если запрос был выполнен неподдерживаемым HTTP-методом                                     ║
+║      возвращается HttpResponseNotAllowed                                                                    ║
+║   -- options(self, request, *args, **kwargs)                                                                ║
+║                                                                                                             ║
+║   ContextMixin средства для формирования контекста шаблона                                                  ║
+║   ────────────                                                                                              ║
+║   - extra_context словарь контекста, создается при первом обращении к контроллеру-классу. Дальше неизменен! ║
+║   - get_context_data(self, **kwargs):                                                                       ║
+║       kwargs.setdefault('view', self)                                                                       ║
+║       if self.extra_context is not None:                                                                    ║
+║           kwargs.update(self.extra_context)                                                                 ║
+║       return kwargs                                                                                         ║
+║       ! Добавлять наборы записей в контекст шаблона только в переопределенном методе get_context_data() !   ║
+║                                                                                                             ║
+║   TemplateResponseMixin средства для рендеринга шаблона                                                     ║
+║   ─────────────────────                                                                                     ║
+║   - template_name                                                                                           ║
+║   - content_type По умолчанию None (MIME-тип и кодировка по умолчанию)                                      ║
+║   - response_class По умолчанию TemplateResponse                                                            ║
+║   - template_engine                                                                                         ║
+║   -- get_template_names(self) - должен возвращать список (list) путей к шаблонам. Тут -                     ║
+║       if self.template_name is None:                                                                        ║
+║               raise ImproperlyConfigured(                                                                   ║
+║                  "TemplateResponseMixin requires either a definition of "                                   ║
+║                   "'template_name' or an implementation of 'get_template_names()'")                         ║
+║       else:                                                                                                 ║
+║       return [self.template_name]                                                                           ║
+║   -- render_to_response(self, context, **response_kwargs) Возвращает экземпляр класса ответа                ║
+║           return self.response_class(..., **response_kwargs) По умолчанию TemplateResponse                  ║
+╟─────────────────────────────────────────────────────────────────────────────────────────────────────────────╢
+║   TemplateView: Все вместе    Автоматически выполняет рендеринг шаблона и отправку ответа при получении     ║
+║   ────────────                                                                                              ║
+║       запроса GET. В формируемый контекст шаблона добавляются все URL-параметры, которые присутствуют       ║
+║       в маршруте, под своими изначальными именами                                                           ║
+║       Выводим страницу с объявлениями из выбранной рубрики:                                                 ║
+║                                                                                                             ║
+║       from django.views.generic.base import TemplateView                                                    ║
+║       from .models import Bb, Rubric                                                                        ║
+║                                                                                                             ║
+║       class BbByRubricView(TemplateView):                                                                   ║
+║               template_name = 'bboard/by_rubric.html'                                                       ║
+║                                                                                                             ║
+║               def get_context_data(self, **kwargs):                                                         ║
+║                       context = super().get_context_data(**kwargs)                                          ║
+║                       context['bbs'] = Bb.objects.filter(rubric=context['rubric_id'])                       ║
+║                       context['rubrics'] = Rubric.objects.all()                                             ║
+║                       context['current_rubric'] = Rubric.objects.get(pk=context['rubric_id'])               ║
+║               return context                                                                                ║
+║                                                                                                             ║
+║       Поскольку класс TemplateView добавляет в контекст значения всех полученных им URL-параметров,         ║
+║       мы можем извлечь ключ рубрики, обратившись к элементу rubric_id контекста в переопределенном методе   ║
+║       get_context_data(). В других классах такой "номер" не пройдет, т.к. они не наследуют от TemplateView  ║
+╚═════════════════════════════════════════════════════════════════════════════════════════════════════════════╝

@@ -1,0 +1,34 @@
+View 
+ -htttp_method_names = ['get', 'post', 'put', 'patch', 'delete', 'head', 'options', 'trace']
+  --setup(self, request, *args, **kwargs)                    dispatch(self, request, *args, **kwargs)
+  --htttp_method_not_allowed(self, request, *args, **kwargs) options(self, request, *args, **kwargs)
+MultipleObjectMixin(ContextMixin)
+                        ||
+                        \/
+                        -extra_context --get_context_data(self, **kwargs):
+ -model queryset ordering paginate_by page_qwarg(по ум-ю "page") paginate_orphans(last part) allow_empty 
+ paginator_class context_object_name(<model>_list, если не указано)
+ --get_queryset get_ordering get_paginate_by get_paginate_orphans get_allow_empty get_paginator
+ paginate_queryset(self, queryset, page_size)!возвращает кортеж! get_context_object_name 
+ get_context_data(self, **kwargs) !возвращает контекст с 5 переменными: 
+  object_list, get_context_object_name() is_paginated paginator page_obj! 
+DateMixin
+ -date_field allow_future 
+  --get_date_field(self) --get_allow_future(self)
+
+||
+\/
+BaseDateListView
+ -allow_empty date_list_period
+ --get_date_list_period get_dated_items!возвращает кортеж 1список дат 2набор 3словарь контекста NotImplementedError!
+ get_dated_queryset(self, **lookup) get_date_list(self, queryset, date_type=None, ordering='ASC')
+ Класс добавляет в контекст шаблона два доп элем-та object_list date_list
+  • context['object_list'] результирующий набор записей
+  • context['date_list'] list урезанных значений дат, хранящихся в записях из полученного набора
+||
+\/
+ArhiveIndexView BaseDateListView, MultipleObjectTemplateResponseMixin
+                                    attr & method
+                                     -template_name_suffix
+                                     --get_template_names(self) - переопределенный метод, возвращающий список 
+                                     путей к шаблонам в виде строк
